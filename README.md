@@ -22,7 +22,7 @@ Visitor counting happens on the server: a daily-rotating hash of IP, user agent 
 
 | Part | Bytes |
 | --- | --- |
-| Core | 1484 |
+| Core | 1638 |
 | Outbound links | 221 |
 | File downloads | 331 |
 | Rage clicks | 399 |
@@ -56,6 +56,17 @@ Redact or drop hits before they leave the browser:
   }
 </script>
 ```
+
+Script tag options:
+
+| Attribute | Effect |
+| --- | --- |
+| `data-auto-track="false"` | No automatic pageviews. Call `window.analytics.pageview(path?)` yourself. |
+| `data-exclude-search="true"` | Strip query strings from recorded referrers and 404 URLs. |
+| `data-tag="variant-b"` | Attach a label to every hit, for A/B tests or environments. |
+| `data-before-send="fn"` | Rewrite or drop any hit before it is sent. |
+
+Hashes are never sent.
 
 Full docs: https://glyphex.io/docs/script
 
