@@ -70,6 +70,23 @@ Hashes are never sent.
 
 Full docs: https://glyphex.io/docs/script
 
+## npm
+
+For React, Next.js, Vue or any bundled app:
+
+```sh
+npm install @glyphex/tracker
+```
+
+```js
+import { init, track } from "@glyphex/tracker";
+
+init({ siteId: "YOUR_SITE_ID" });
+track("Signup", { plan: "lite" }); // safe to call before the script has loaded
+```
+
+Options: `autoTrack`, `excludeSearch`, `tag`, `beforeSend`, `host`. Single-page app navigation is tracked automatically.
+
 ## Build
 
 ```sh

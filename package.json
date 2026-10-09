@@ -1,11 +1,44 @@
 {
-  "name": "glyphex-tracker",
+  "name": "@glyphex/tracker",
   "version": "1.0.0",
   "description": "The cookieless tracking script behind Glyphex analytics.",
   "license": "MIT",
   "type": "module",
   "repository": "github:glyphexio/glyphex-tracker",
   "homepage": "https://glyphex.io/docs/script",
-  "scripts": { "build": "node build.mjs" },
-  "devDependencies": { "terser": "^5.31.0" }
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "terser": "^5.31.0"
+  },
+  "main": "npm/index.js",
+  "module": "npm/index.js",
+  "types": "npm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./npm/index.d.ts",
+      "default": "./npm/index.js"
+    }
+  },
+  "files": [
+    "npm",
+    "src",
+    "build.mjs",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "keywords": [
+    "analytics",
+    "privacy",
+    "cookieless",
+    "gdpr",
+    "web-analytics",
+    "glyphex"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
