@@ -4,7 +4,7 @@
   "description": "The cookieless tracking script behind Glyphex analytics.",
   "license": "MIT",
   "type": "module",
-  "repository": "github:lisbeth718/glyphex-tracker",
+  "repository": "github:glyphexio/glyphex-tracker",
   "homepage": "https://glyphex.io/docs/script",
   "scripts": { "build": "node build.mjs" },
   "devDependencies": { "terser": "^5.31.0" }
