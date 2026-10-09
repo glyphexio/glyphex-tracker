@@ -16,6 +16,21 @@
     return !!(script && script.hasAttribute(attr));
   }
 
+  // String options: window.__glyphex value, else the script tag's data-* attribute.
+  function opt(name, attr) {
+    return G[name] != null ? G[name] : script && script.getAttribute(attr);
+  }
+  // data-exclude-search="true": query strings are stripped from recorded URLs (referrer,
+  // 404 URL). utm_* params are still read from the live URL first. Hashes are never sent
+  // and hash changes never trigger pageviews, so data-exclude-hash="true" is accepted for
+  // Umami compatibility and needs no code.
+  var excludeSearch = String(opt("excludeSearch", "data-exclude-search")) === "true";
+  // data-auto-track="false": no automatic pageviews or SPA tracking; use analytics.pageview().
+  var autoTrack = String(opt("autoTrack", "data-auto-track")) !== "false";
+  // data-tag: label (max 50 chars) attached to every hit, e.g. for A/B tests or environments.
+  var tag = String(opt("tag", "data-tag") || "").slice(0, 50);
+  var forced; // pathname set by a manual analytics.pageview(path)
+
   if (document.visibilityState === "prerender" || location.protocol === "file:") return;
 
   // localStorage opt-out: localStorage.setItem("glyphex_ignore", "true")
@@ -44,7 +59,8 @@
 
   // Base payload plus extras. Pageviews carry no type (the collect endpoint's default).
   function msg(type, props) {
-    var d = { siteId: siteId, pathname: location.pathname, hostname: location.hostname, timestamp: Date.now() };
+    var d = { siteId: siteId, pathname: forced || location.pathname, hostname: location.hostname, timestamp: Date.now() };
+    if (tag) d.tag = tag;
     if (type) d.type = type;
     for (var k in props) d[k] = props[k];
     return d;
@@ -64,13 +80,17 @@
     fetch(baseUrl, { method: "POST", body: payload, headers: { "Content-Type": "text/plain" }, keepalive: true }).catch(function() {});
   }
 
+  function strip(u) {
+    return u ? (excludeSearch ? u.split(/[?#]/)[0] : u) : null;
+  }
+
   function trackEvent(name, properties) {
     if (name) send(msg("event", { name: name, properties: properties || null }));
   }
 
   // Record a hit on the not-found page: broken URL (path + query, or explicit) plus referrer.
   function trackNotFound(url) {
-    send(msg("notfound", { pathname: url || (location.pathname + location.search), referrer: document.referrer || null }));
+    send(msg("notfound", { pathname: url || (location.pathname + (excludeSearch ? "" : location.search)), referrer: strip(document.referrer) }));
   }
 
   var currentPathname, maxScrollDepth, visibleSince, engagedTime, engagementSent;
@@ -80,7 +100,7 @@
 
   // Start measuring a fresh page.
   function reset() {
-    currentPathname = location.pathname;
+    currentPathname = forced || location.pathname;
     maxScrollDepth = 0;
     visibleSince = Date.now();
     engagedTime = 0;
@@ -95,11 +115,19 @@
     });
     send(msg(0, {
       title: document.title || null,
-      referrer: isFirstCollect ? (document.referrer || null) : null,
+      referrer: isFirstCollect ? strip(document.referrer) : null,
       screenWidth: window.screen.width,
       utm: has ? utm : null
     }));
     isFirstCollect = false;
+  }
+
+  // Manual pageview: analytics.pageview(path?) flushes the previous page and starts a new one.
+  function manualPageview(p) {
+    sendEngagement();
+    forced = p ? String(p) : "";
+    reset();
+    pageview();
   }
 
   window.addEventListener("scroll", function() {
@@ -130,7 +158,7 @@
   // SPA navigation: only a pathname change counts. The previous page is flushed
   // synchronously; the new pageview waits 300 ms so document.title is the new page's.
   function onNav() {
-    if (location.pathname === currentPathname) return;
+    if (!autoTrack || location.pathname === currentPathname) return;
     sendEngagement();
     for (var i = 0; i < leaveHooks.length; i++) leaveHooks[i](currentPathname);
     reset();
@@ -161,7 +189,7 @@
 
   // identify/group/setUserProperties/reset/getAttribution were removed with product
   // analytics but stay as no-ops so existing callers never throw.
-  var api = window.analytics = { track: trackEvent, trackNotFound: trackNotFound };
+  var api = window.analytics = { track: trackEvent, trackNotFound: trackNotFound, pageview: manualPageview };
   "getAttribution identify group setUserProperties reset".split(" ").forEach(function(n) {
     api[n] = function() {};
   });
@@ -169,6 +197,8 @@
   api._ = { s: send, m: msg, t: trackEvent, f: flagOn, l: leaveHooks };
 
   reset();
-  pageview();
-  if (flagOn("notFound", "data-404")) trackNotFound();
+  if (autoTrack) {
+    pageview();
+    if (flagOn("notFound", "data-404")) trackNotFound();
+  }
 })();
