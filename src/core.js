@@ -29,7 +29,11 @@
   var autoTrack = String(opt("autoTrack", "data-auto-track")) !== "false";
   // data-tag: label (max 50 chars) attached to every hit, e.g. for A/B tests or environments.
   var tag = String(opt("tag", "data-tag") || "").slice(0, 50);
+  // data-domains="example.com,www.example.com": only send when location.hostname is listed.
+  var domains = opt("domains", "data-domains");
   var forced; // pathname set by a manual analytics.pageview(path)
+
+  if (domains && String(domains).toLowerCase().trim().split(/\s*,\s*/).indexOf(location.hostname.toLowerCase()) < 0) return;
 
   if (document.visibilityState === "prerender" || location.protocol === "file:") return;
 
