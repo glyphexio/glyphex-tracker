@@ -17,6 +17,7 @@ function flush() {
 }
 
 function call(name, args) {
+  if (typeof window === "undefined") return;
   var a = api();
   if (a && typeof a[name] === "function") return a[name].apply(a, args);
   queue.push([name, args]);

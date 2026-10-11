@@ -1,7 +1,7 @@
 // Rage click detection: 3 clicks within 800 ms and 30 px.
 (function() {
   var c = window.analytics && window.analytics._;
-  if (!c) return;
+  if (!c || !c.f("rage", "data-rage", 1)) return;
   var clicks = [], cooldown = 0;
   function selector(el) {
     if (!el || el === document.body || el === document.documentElement) return "body";

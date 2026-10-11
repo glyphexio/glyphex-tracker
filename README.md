@@ -2,21 +2,22 @@
 
 The open-source browser script behind [Glyphex](https://glyphex.io) analytics. MIT licensed, cookie-free, and small enough to read in one sitting.
 
-![core](https://img.shields.io/badge/core-1699%20B%20gzip-black) ![all modules](https://img.shields.io/badge/core%20%2B%20all%20modules-3015%20B%20gzip-black)
+![core](https://img.shields.io/badge/core-1743%20B%20gzip-black) ![all modules](https://img.shields.io/badge/core%20%2B%20all%20modules-3406%20B%20gzip-black)
 
 ## Size (minified, gzip -9)
 
 | File | Bytes |
 | --- | --- |
-| `core.js` (pageviews, events, engagement, SPA navigation) | 1699 |
-| `modules/outbound.js` | 221 |
-| `modules/downloads.js` | 331 |
-| `modules/rage.js` | 399 |
-| `modules/errors.js` | 310 |
+| `core.js` (pageviews, events, engagement, SPA navigation) | 1743 |
+| `modules/outbound.js` | 273 |
+| `modules/downloads.js` | 381 |
+| `modules/rage.js` | 414 |
+| `modules/errors.js` | 379 |
 | `modules/vitals.js` | 824 |
-| Core + every module | 3015 |
+| `modules/heatmap.js` | 531 |
+| Core + every module | 3406 |
 
-CI fails if core reaches 2000 bytes gzip. Each site is served core plus only the modules it enabled.
+CI fails if core reaches 2000 bytes gzip.
 
 ## Install
 
@@ -24,11 +25,24 @@ CI fails if core reaches 2000 bytes gzip. Each site is served core plus only the
 <script defer src="https://glyphex.io/t/YOUR_SITE_ID.js"></script>
 ```
 
-Or the plain tag, configured with data attributes:
+Or the plain tag, configured with data attributes. It bundles core and every module:
 
 ```html
 <script defer data-site-id="YOUR_SITE_ID" src="https://glyphex.io/tracker.js"></script>
 ```
+
+## npm (not yet published)
+
+The `npm/` folder is the `@glyphex/tracker` package. It is a small loader, not a copy of the script: `init()` adds a `<script defer>` for `https://glyphex.io/t/YOUR_SITE_ID.js`, so your per-site settings still apply. `track()`, `pageview()` and `trackNotFound()` can be called before the script has loaded; calls are queued and run once it does. Calls made where there is no `window` (server-side rendering) are dropped, not queued. The package is ESM only and includes TypeScript types.
+
+```js
+import { init, track } from "@glyphex/tracker";
+
+init({ siteId: "YOUR_SITE_ID" });
+track("Signup", { plan: "pro" });
+```
+
+`init` options: `siteId` (required), `host` (default `https://glyphex.io`), `autoTrack`, `excludeSearch`, `tag`, `beforeSend`. `init` does nothing on the server.
 
 ## What is collected
 
@@ -42,17 +56,18 @@ Engagement (once per page, when it is hidden or left): `scrollDepth` (0-100) and
 
 Custom events (`analytics.track`, `data-glyphex-event`): `name` and the `properties` you pass.
 
-Built-in events, sent as custom events (on by default for new sites):
+Built-in events, sent as custom events (on by default):
 
-- Outbound Link: `url`, `hostname`
-- File Download: `url`, `filename`, `extension`
+- Outbound Link (`http:` and `https:` links to another host; never `mailto:`, `tel:` or `javascript:`): `url` (origin and path only, no query string or hash), `hostname`
+- File Download (`http:` and `https:` links to common file types such as pdf, zip, docx): `url` (origin and path only), `filename` (from the path), `extension`
+- Rage Click (3 clicks within 800 ms and 30 px): `selector` (tag, id or first two classes), `x`, `y`
 
-Opt-in:
+Off unless you enable them:
 
-- Rage Click: `selector` (tag, id or first two classes), `x`, `y`
-- Not-found hit (`data-404`): `pathname` (with query unless `data-exclude-search`), `referrer`
-- Errors (`data-errors`, max 20 per page load): `message`, `source`, `line`, `col`
+- Not-found hit (`data-404`, sent on page load): `pathname` (with query unless `data-exclude-search`), `referrer`
+- Errors (`data-errors`, max 20 per page load): `message`, `source` (origin and path only, no query string or hash), `line`, `col`
 - Vitals (`data-vitals`): `lcp`, `cls`, `inp`, `ttfb`, `fcp`
+- Heatmap (`data-heatmap`, one hit per page view when it is hidden or left, max 50 clicks): `clicks` (each `x` as permille of page width, `y` in px rounded to 10, `s` selector as tag, id or first two classes), `device` (`mobile` under 768 px, `tablet` under 1024 px, else `desktop`), `docHeight` (rounded to 100 px). No element text, no input values
 
 Nothing else leaves the browser. Hash fragments are never sent.
 
@@ -66,7 +81,7 @@ Nothing else leaves the browser. Hash fragments are never sent.
 
 ## Options
 
-Set as `data-*` attributes on the script tag, or as camelCase keys on `window.__glyphex`.
+Set as `data-*` attributes on the script tag, or as camelCase keys on `window.__glyphex` (for example `data-exclude-search` is `excludeSearch`, `data-api` is `api`, `data-404` is `notFound`).
 
 | Attribute | Effect |
 | --- | --- |
@@ -76,11 +91,24 @@ Set as `data-*` attributes on the script tag, or as camelCase keys on `window.__
 | `data-exclude-hash="true"` | Accepted for Umami compatibility. Hashes are never recorded anyway. |
 | `data-auto-track="false"` | No automatic pageviews, SPA tracking or 404 hits. Use `analytics.pageview()`. |
 | `data-tag="variant-b"` | Label (max 50 chars) attached to every hit. |
-| `data-api="https://host/api/collect"` | Send to a different collect endpoint. |
-| `data-before-send="fnName"` | Name of a `window` function `(type, payload)`. Return falsy to drop the hit, or an object to replace it. |
-| `data-errors="true"` | Enable the errors module. |
-| `data-vitals="true"` | Enable the vitals module. |
-| `data-404="true"` | Record a not-found hit on this page. |
+| `data-api="https://host/api/collect"` | Send to a different collect endpoint (`api` key). |
+| `data-before-send="fnName"` | Name of a `window` function `(type, payload)` (`beforeSend` key: a name or a function). Return falsy to drop the hit, or an object to replace it. |
+
+### Modules and flags
+
+The plain `tracker.js` tag bundles core and every module. `outbound`, `downloads` and `rage` are on unless you turn them off; `errors`, `vitals` and `heatmap` are off until you turn them on. A flag is the `data-<name>` attribute or the `window.__glyphex.<name>` key, and the key wins if both are set. `"false"` and `"0"` (or a `false` or `0` key) mean off; any other value, including a bare `data-errors`, means on.
+
+| Flag | Default | Notes |
+| --- | --- | --- |
+| `data-outbound` / `outbound` | on | `data-outbound="false"` turns it off. |
+| `data-downloads` / `downloads` | on | `data-downloads="false"` turns it off. |
+| `data-rage` / `rage` | on | `data-rage="false"` turns it off. |
+| `data-errors` / `errors` | off | `data-errors="true"` turns it on. |
+| `data-vitals` / `vitals` | off | `data-vitals="true"` turns it on. |
+| `data-heatmap` / `heatmap` | off | `data-heatmap="true"` turns it on. |
+| `data-404` / `notFound` | off | Core, not a module. `data-404="true"` records a not-found hit on this page. |
+
+The per-site tag `/t/YOUR_SITE_ID.js` serves core plus only the modules enabled in your site settings, with your settings baked in as `window.__glyphex`, so you do not need the attributes there.
 
 Declarative events: `data-glyphex-event="Signup"` plus `data-glyphex-event-plan="pro"` on any element.
 

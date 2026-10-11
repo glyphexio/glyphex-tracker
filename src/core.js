@@ -1,4 +1,4 @@
-// Glyphex tracker core. Opt-in modules live in tracker/modules and attach via window.analytics._.
+// Glyphex tracker core. Optional modules live in modules/ next to this file and attach via window.analytics._.
 // The declarative-events click handler and the beforeSend hook are adapted from the
 // Umami tracker (MIT, https://github.com/umami-software/umami).
 (function() {
@@ -11,9 +11,12 @@
   // Per-site config baked into /t/:id.js (window.__glyphex). Old inline tags
   // fall back to data-* attributes on the script tag.
   var G = window.__glyphex || {};
-  function flagOn(name, attr) {
-    if (G[name] != null) return !!G[name];
-    return !!(script && script.hasAttribute(attr));
+  // Module and feature flags: window.__glyphex value, else the script tag's data-* attribute.
+  // "false" and "0" (or a false/0 value) mean off; anything else, including a bare attribute,
+  // means on. With neither set, `on` decides.
+  function flagOn(name, attr, on) {
+    var v = G[name] != null ? G[name] : script && script.getAttribute(attr);
+    return v == null ? !!on : v !== false && v !== 0 && v !== "false" && v !== "0";
   }
 
   // String options: window.__glyphex value, else the script tag's data-* attribute.
@@ -35,7 +38,8 @@
 
   if (domains && String(domains).toLowerCase().trim().split(/\s*,\s*/).indexOf(location.hostname.toLowerCase()) < 0) return;
 
-  if (document.visibilityState === "prerender" || location.protocol === "file:") return;
+  // The dashboard heatmap preview frames the live page under this name: stay silent there.
+  if (document.visibilityState === "prerender" || location.protocol === "file:" || window.name === "glyphex-preview") return;
 
   // localStorage opt-out: localStorage.setItem("glyphex_ignore", "true")
   try {
@@ -54,7 +58,7 @@
     return;
   }
 
-  var baseUrl = (script && script.getAttribute("data-api")) ||
+  var baseUrl = opt("api", "data-api") ||
     (script && script.src ? new URL(script.src).origin : location.origin) + "/api/collect";
 
   // beforeSend(type, payload): falsy drops the hit, an object replaces the payload.
@@ -97,7 +101,7 @@
     send(msg("notfound", { pathname: url || (location.pathname + (excludeSearch ? "" : location.search)), referrer: strip(document.referrer) }));
   }
 
-  var currentPathname, maxScrollDepth, visibleSince, engagedTime, engagementSent;
+  var currentPathname, maxScrollDepth, visibleSince, engagedTime, sentTime;
   var isFirstCollect = true;
   var navTimer;
   var leaveHooks = []; // modules register fn(oldPathname), run synchronously on SPA navigation
@@ -108,7 +112,7 @@
     maxScrollDepth = 0;
     visibleSince = Date.now();
     engagedTime = 0;
-    engagementSent = false;
+    sentTime = 0;
   }
 
   function pageview() {
@@ -142,14 +146,14 @@
     }
   }, { passive: true });
 
-  // Engagement counts visible time only. Sends at most once per page.
+  // Engagement counts visible time only. Each hide sends the running total (the
+  // server overwrites), so returning to the tab keeps counting.
   function sendEngagement() {
-    if (engagementSent) return;
-    engagedTime += Date.now() - visibleSince;
-    visibleSince = Date.now();
+    if (visibleSince) engagedTime += Date.now() - visibleSince;
+    visibleSince = document.visibilityState === "hidden" ? 0 : Date.now();
     var t = Math.round(engagedTime / 1000);
-    if (t < 1) return;
-    engagementSent = true;
+    if (t < 1 || t === sentTime) return;
+    sentTime = t;
     send(msg("engagement", { pathname: currentPathname, scrollDepth: maxScrollDepth, timeOnPage: t }));
   }
 
@@ -164,6 +168,7 @@
   function onNav() {
     if (!autoTrack || location.pathname === currentPathname) return;
     sendEngagement();
+    forced = "";
     for (var i = 0; i < leaveHooks.length; i++) leaveHooks[i](currentPathname);
     reset();
     clearTimeout(navTimer);

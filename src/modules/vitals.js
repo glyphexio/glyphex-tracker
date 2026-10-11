@@ -1,4 +1,4 @@
-// Core Web Vitals (opt-in via data-vitals or the site setting).
+// Core Web Vitals (off unless data-vitals or window.__glyphex.vitals is set).
 // Metric logic adapted from the Umami tracker (MIT, https://github.com/umami-software/umami):
 // CLS session windows, INP as p98 of interactions grouped by interactionId,
 // activationStart subtracted for prerendered pages, one sample per SPA route.

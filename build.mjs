@@ -9,7 +9,7 @@ import { minify } from "terser";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = here;
 
-export const MODULES = ["outbound", "downloads", "rage", "errors", "vitals"];
+export const MODULES = ["outbound", "downloads", "rage", "errors", "vitals", "heatmap"];
 
 async function min(file) {
   const src = readFileSync(join(here, "src", file), "utf8");
