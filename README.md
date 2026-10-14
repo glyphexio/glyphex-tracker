@@ -96,13 +96,13 @@ Set as `data-*` attributes on the script tag, or as camelCase keys on `window.__
 
 ### Modules and flags
 
-The plain `tracker.js` tag bundles core and every module. `outbound`, `downloads` and `rage` are on unless you turn them off; `errors`, `vitals` and `heatmap` are off until you turn them on. A flag is the `data-<name>` attribute or the `window.__glyphex.<name>` key, and the key wins if both are set. `"false"` and `"0"` (or a `false` or `0` key) mean off; any other value, including a bare `data-errors`, means on.
+The plain `tracker.js` tag bundles core and every module. `outbound` and `downloads` are on unless you turn them off; `rage`, `errors`, `vitals` and `heatmap` are off until you turn them on. A flag is the `data-<name>` attribute or the `window.__glyphex.<name>` key, and the key wins if both are set. `"false"` and `"0"` (or a `false` or `0` key) mean off; any other value, including a bare `data-errors`, means on.
 
 | Flag | Default | Notes |
 | --- | --- | --- |
 | `data-outbound` / `outbound` | on | `data-outbound="false"` turns it off. |
 | `data-downloads` / `downloads` | on | `data-downloads="false"` turns it off. |
-| `data-rage` / `rage` | on | `data-rage="false"` turns it off. |
+| `data-rage` / `rage` | off | `data-rage` (or `data-rage="true"`) turns it on. |
 | `data-errors` / `errors` | off | `data-errors="true"` turns it on. |
 | `data-vitals` / `vitals` | off | `data-vitals="true"` turns it on. |
 | `data-heatmap` / `heatmap` | off | `data-heatmap="true"` turns it on. |
