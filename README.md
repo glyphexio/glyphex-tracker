@@ -2,20 +2,20 @@
 
 The open-source browser script behind [Glyphex](https://glyphex.io) analytics. MIT licensed, cookie-free, and small enough to read in one sitting.
 
-![core](https://img.shields.io/badge/core-1743%20B%20gzip-black) ![all modules](https://img.shields.io/badge/core%20%2B%20all%20modules-3406%20B%20gzip-black)
+![core](https://img.shields.io/badge/core-1863%20B%20gzip-black) ![all modules](https://img.shields.io/badge/core%20%2B%20all%20modules-3535%20B%20gzip-black)
 
 ## Size (minified, gzip -9)
 
 | File | Bytes |
 | --- | --- |
-| `core.js` (pageviews, events, engagement, SPA navigation) | 1743 |
-| `modules/outbound.js` | 273 |
-| `modules/downloads.js` | 381 |
+| `core.js` (pageviews, events, engagement, SPA navigation) | 1863 |
+| `modules/outbound.js` | 275 |
+| `modules/downloads.js` | 383 |
 | `modules/rage.js` | 414 |
 | `modules/errors.js` | 379 |
-| `modules/vitals.js` | 824 |
-| `modules/heatmap.js` | 531 |
-| Core + every module | 3406 |
+| `modules/vitals.js` | 825 |
+| `modules/heatmap.js` | 533 |
+| Core + every module | 3535 |
 
 CI fails if core reaches 2000 bytes gzip.
 
@@ -79,6 +79,10 @@ Nothing else leaves the browser. Hash fragments are never sent.
 - No keystrokes, form values, page text or session recordings.
 - Do Not Track and Global Privacy Control are binding: the script sends nothing.
 
+## How sending works
+
+Pageviews and other hits go out as a `fetch` POST with `keepalive`. Hits sent when the page is hidden or left (engagement, vitals, heatmap) and click-triggered events (outbound links, downloads, `data-glyphex-event`) use `navigator.sendBeacon` first, so they survive navigation. Hits that fail with a network error or a 500/502/503 are retried twice from memory within ten seconds; nothing is stored on the device. A retried hit is counted when it arrives, not when it happened.
+
 ## Options
 
 Set as `data-*` attributes on the script tag, or as camelCase keys on `window.__glyphex` (for example `data-exclude-search` is `excludeSearch`, `data-api` is `api`, `data-404` is `notFound`).
@@ -91,7 +95,7 @@ Set as `data-*` attributes on the script tag, or as camelCase keys on `window.__
 | `data-exclude-hash="true"` | Accepted for Umami compatibility. Hashes are never recorded anyway. |
 | `data-auto-track="false"` | No automatic pageviews, SPA tracking or 404 hits. Use `analytics.pageview()`. |
 | `data-tag="variant-b"` | Label (max 50 chars) attached to every hit. |
-| `data-api="https://host/api/collect"` | Send to a different collect endpoint (`api` key). |
+| `data-api="https://host/api/collect"` | Send to a different collect endpoint (`api` key). A proxy on another origin must forward the `Access-Control-Allow-Origin` header, otherwise the browser reports every hit as failed and the retry sends it again. |
 | `data-before-send="fnName"` | Name of a `window` function `(type, payload)` (`beforeSend` key: a name or a function). Return falsy to drop the hit, or an object to replace it. |
 
 ### Modules and flags
@@ -133,8 +137,12 @@ minify(fs.readFileSync("src/core.js", "utf8"), {
 '
 ```
 
-Repeat with each `src/modules/<name>.js` you have enabled. A different terser version can produce different bytes; if you see a mismatch, check the version first, or just read `src/core.js` (about 200 lines).
+Repeat with each `src/modules/<name>.js` you have enabled. A different terser version can produce different bytes; if you see a mismatch, check the version first, or just read `src/core.js` (about 240 lines).
 
 ## License and credit
 
 MIT, see [LICENSE](LICENSE) and [NOTICE](NOTICE). Parts of the declarative events handler, the `beforeSend` hook and the Core Web Vitals logic are adapted from the [Umami](https://github.com/umami-software/umami) tracker (MIT, Copyright Umami Software, Inc.). Umami is credited in the source headers.
+
+## Changelog
+
+- 1.3.0: Retry hits that fail with a network error or 500/502/503 twice from memory; no storage is used

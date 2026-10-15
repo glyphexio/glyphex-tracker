@@ -8,7 +8,7 @@
     try {
       var u = new URL(a.href);
       if (/^https?:$/.test(u.protocol) && u.hostname.replace(/^www\./, "") !== location.hostname.replace(/^www\./, "")) {
-        c.t("Outbound Link", { url: u.origin + u.pathname, hostname: u.hostname });
+        c.t("Outbound Link", { url: u.origin + u.pathname, hostname: u.hostname }, 1);
       }
     } catch (err) {}
   });

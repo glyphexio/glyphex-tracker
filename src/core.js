@@ -74,8 +74,29 @@
     return d;
   }
 
-  // text/plain avoids a CORS preflight.
-  function send(d) {
+  // Failed fetches (network error, 500, 502, 503) are retried from memory after 2 s and again
+  // after 6 s, then dropped; at most 10 retries wait at once. Nothing is stored on the device.
+  // Never retry 429, 504 or other 4xx. The server ignores client timestamps, so a retried hit
+  // is counted when it arrives, not when it happened.
+  var pending = 0;
+
+  // beacon: the page is being left or clicked away from, so sendBeacon first (fire-and-forget,
+  // survives navigation). Browsers without fetch keepalive use it too. text/plain avoids a CORS preflight.
+  function post(p, beacon, n) {
+    if ((beacon || !(window.Request && "keepalive" in Request.prototype)) && navigator.sendBeacon && navigator.sendBeacon(baseUrl, p)) return;
+    n = n || 0;
+    function retry() {
+      if (n < 2 && pending < 10) {
+        pending++;
+        setTimeout(function() { pending--; post(p, 0, n + 1); }, n ? 6000 : 2000);
+      }
+    }
+    fetch(baseUrl, { method: "POST", body: p, headers: { "Content-Type": "text/plain" }, keepalive: true }).then(function(r) {
+      if ([500, 502, 503].indexOf(r.status) >= 0) retry();
+    }, retry);
+  }
+
+  function send(d, beacon) {
     var fn = typeof beforeSend === "string" ? window[beforeSend] : beforeSend;
     var r = d;
     if (typeof fn === "function") {
@@ -83,17 +104,15 @@
     }
     if (!r) return;
     if (typeof r === "object") d = r;
-    var payload = JSON.stringify(d);
-    if (navigator.sendBeacon && navigator.sendBeacon(baseUrl, payload)) return;
-    fetch(baseUrl, { method: "POST", body: payload, headers: { "Content-Type": "text/plain" }, keepalive: true }).catch(function() {});
+    post(JSON.stringify(d), beacon);
   }
 
   function strip(u) {
     return u ? (excludeSearch ? u.split(/[?#]/)[0] : u) : null;
   }
 
-  function trackEvent(name, properties) {
-    if (name) send(msg("event", { name: name, properties: properties || null }));
+  function trackEvent(name, properties, beacon) {
+    if (name) send(msg("event", { name: name, properties: properties || null }), beacon);
   }
 
   // Record a hit on the not-found page: broken URL (path + query, or explicit) plus referrer.
@@ -148,20 +167,20 @@
 
   // Engagement counts visible time only. Each hide sends the running total (the
   // server overwrites), so returning to the tab keeps counting.
-  function sendEngagement() {
+  function sendEngagement(beacon) {
     if (visibleSince) engagedTime += Date.now() - visibleSince;
     visibleSince = document.visibilityState === "hidden" ? 0 : Date.now();
     var t = Math.round(engagedTime / 1000);
     if (t < 1 || t === sentTime) return;
     sentTime = t;
-    send(msg("engagement", { pathname: currentPathname, scrollDepth: maxScrollDepth, timeOnPage: t }));
+    send(msg("engagement", { pathname: currentPathname, scrollDepth: maxScrollDepth, timeOnPage: t }), beacon);
   }
 
   document.addEventListener("visibilitychange", function() {
-    if (document.visibilityState === "hidden") sendEngagement();
+    if (document.visibilityState === "hidden") sendEngagement(1);
     else visibleSince = Date.now();
   });
-  window.addEventListener("pagehide", sendEngagement);
+  window.addEventListener("pagehide", function() { sendEngagement(1); });
 
   // SPA navigation: only a pathname change counts. The previous page is flushed
   // synchronously; the new pageview waits 300 ms so document.title is the new page's.
@@ -185,7 +204,7 @@
   window.addEventListener("popstate", onNav);
 
   // Declarative events: data-glyphex-event="Name" plus data-glyphex-event-<prop>="value".
-  // sendBeacon survives navigation, so links need no preventDefault or waiting.
+  // Clicks are sent with sendBeacon (survives navigation), so links need no preventDefault or waiting.
   document.addEventListener("click", function(e) {
     var el = e.target.closest && e.target.closest("[data-glyphex-event]");
     if (!el) return;
@@ -193,7 +212,7 @@
     for (var i = 0; i < attrs.length; i++) {
       if (attrs[i].name.indexOf("data-glyphex-event-") === 0) props[attrs[i].name.slice(19)] = attrs[i].value;
     }
-    trackEvent(el.getAttribute("data-glyphex-event"), props);
+    trackEvent(el.getAttribute("data-glyphex-event"), props, 1);
   }, true);
 
   // identify/group/setUserProperties/reset/getAttribution were removed with product

@@ -9,7 +9,7 @@
     try {
       var u = new URL(a.href), ext = u.pathname.split(".").pop().toLowerCase();
       if (/^https?:$/.test(u.protocol) && exts.indexOf(ext) !== -1) {
-        c.t("File Download", { url: u.origin + u.pathname, filename: u.pathname.split("/").pop(), extension: ext });
+        c.t("File Download", { url: u.origin + u.pathname, filename: u.pathname.split("/").pop(), extension: ext }, 1);
       }
     } catch (err) {}
   });

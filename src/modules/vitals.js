@@ -63,7 +63,7 @@
       inp: r(m.inp),
       ttfb: r(m.ttfb),
       fcp: r(m.fcp)
-    }));
+    }), 1);
   }
 
   // New SPA route: send the one for the page being left, then start fresh.

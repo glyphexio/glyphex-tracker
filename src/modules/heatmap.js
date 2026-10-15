@@ -28,7 +28,7 @@
     };
     if (typeof path === "string") o.pathname = path;
     clicks = [];
-    c.s(c.m("heatmap", o));
+    c.s(c.m("heatmap", o), 1);
   }
   d.addEventListener("visibilitychange", function() {
     if (d.visibilityState === "hidden") flush();
